@@ -50,13 +50,13 @@ server <- function(input, output, session) {
       )
     }
     panel <<- c(panel, input$username)
-    dir.create(glue("Answers/{input$username}"), showWarnings = FALSE)
+    dir.create(glue("Answers/{input$username}"), showWarnings = FALSE, recursive = TRUE)
     removeModal()
   })
-  
+
   # Prepare products selector.
   updateSelectInput(session, "product", label = colnames(products)[[1]], choices = products[, 1])
-  
+
   # Prepare attributes inputs.
   output$attributes <- renderUI(
     map(seq_len(nrow(attributes)), function(i) {
@@ -68,25 +68,25 @@ server <- function(input, output, session) {
       )
     })
   )
-  
+
   # If product selection changed, then restore attributes inputs.
   observeEvent(input$product, {
     req(input$username, input$product)
-    map(make.names(as.character(attributes$Nombre)), ~updateSliderInput(session, .x, value = 5))
+    map(make.names(as.character(attributes$Nombre)), ~ updateSliderInput(session, .x, value = 5))
     if (file.exists(glue("Answers/{input$username}/{input$product}.csv"))) {
       values <- read_csv(glue("Answers/{input$username}/{input$product}.csv"))
       map(
         colnames(values),
-        ~updateSliderInput(session, make.names(.x), value = as.numeric(values[, .x]))
+        ~ updateSliderInput(session, make.names(.x), value = as.numeric(values[, .x]))
       )
     }
   })
-  
+
   # Submit a result.
   observeEvent(input$submit, {
     reactiveValuesToList(input)[make.names(as.character(attributes$Nombre))] %>%
-      setNames(as.character(attributes$Nombre)) %>% 
-      bind_rows() %>% 
+      setNames(as.character(attributes$Nombre)) %>%
+      bind_rows() %>%
       write_csv(glue("Answers/{input$username}/{input$product}.csv"))
     showNotification("Valuación guardada", type = "message")
   })
