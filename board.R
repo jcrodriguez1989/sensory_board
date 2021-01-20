@@ -7,6 +7,9 @@ library("readr")
 library("shiny")
 library("tidyr")
 
+options(shiny.host = "192.168.100.7") # As shown by `ifconfig`.
+options(shiny.port = 4001)
+
 ui <- fluidPage(
   tabsetPanel(
     tabPanel("Participantes", dataTableOutput("participants")),
