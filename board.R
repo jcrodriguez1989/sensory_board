@@ -81,7 +81,7 @@ server <- function(input, output, session) {
       select(-Valuador) %>%
       group_by(Producto) %>%
       mutate(Valuaciones = n()) %>%
-      summarise_all(median) %>%
+      summarise_if(is.numeric, median) %>%
       arrange(Producto)
   })
 
@@ -91,7 +91,7 @@ server <- function(input, output, session) {
     answers() %>%
       select(-Valuador) %>%
       group_by(Producto) %>%
-      summarise_all(median) %>%
+      summarise_if(is.numeric, median) %>%
       ggradar(grid.min = 0, grid.max = 10, values.radar = c("", "", ""))
   })
 
@@ -113,7 +113,7 @@ server <- function(input, output, session) {
     answers() %>%
       filter(Producto == input$answer_selector) %>%
       select(-Producto) %>%
-      pivot_longer(-Valuador, names_to = "Atributo", values_to = "Valor") %>%
+      pivot_longer(where(is.numeric), names_to = "Atributo", values_to = "Valor") %>%
       mutate(Atributo = factor(Atributo, levels = colnames(answers()[-(1:2)]))) %>%
       ggplot(aes(x = Atributo, y = Valor, label = Valuador)) +
       geom_boxplot() +
