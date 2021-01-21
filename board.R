@@ -1,4 +1,5 @@
 library("dplyr")
+library("DT")
 library("ggplot2")
 library("ggradar")
 library("ggwordcloud")
@@ -15,20 +16,34 @@ ui <- fluidPage(
   tabsetPanel(
     tabPanel(
       "Participantes",
-      dataTableOutput("participants"),
-      selectInput("experts", "Expertos", NULL, multiple = TRUE),
-      actionButton("plot_dist_plot", "Mostrar resultados panel"),
-      plotOutput("panel_dist_plot")
+      h1("Participantes"),
+      br(),
+      DT::dataTableOutput("participants"),
+      hr(),
+      checkboxInput("show_dist_plot", "Mostrar resultados panel"),
+      conditionalPanel(
+        "input.show_dist_plot == true",
+        selectInput("experts", "Expertos", NULL, multiple = TRUE),
+        plotOutput("panel_dist_plot")
+      )
     ),
     tabPanel(
       "Respuestas",
-      dataTableOutput("answers_summary_table"),
+      h1("Respuestas"),
+      br(),
+      DT::dataTableOutput("answers_summary_table"),
       plotOutput("answers_radar"),
-      selectInput("answer_selector", "", NULL),
+      # h1("Individuales"),
+      selectInput("answer_selector", "Individuales", NULL),
       plotOutput("answer_box"),
       plotOutput("answer_wordcloud")
     ),
-    tabPanel("Datos", dataTableOutput("data"))
+    tabPanel(
+      "Datos",
+      h1("Datos"),
+      br(),
+      DT::dataTableOutput("data")
+    )
   )
 )
 
@@ -62,6 +77,12 @@ get_answers <- function() {
 
 col_types <- function(dataset) sapply(dataset, class)
 
+render_dtable <- function(table) {
+  DT::renderDataTable(DT::datatable(
+    table, options = list(paging = FALSE, searching = FALSE, info = FALSE), rownames = FALSE
+  ))
+}
+
 server <- function(input, output, session) {
   participants <- reactiveVal()
   answers <- reactiveVal()
@@ -74,37 +95,36 @@ server <- function(input, output, session) {
   })
 
   # Show participants table.
-  output$participants <- renderDataTable(participants())
-  output$data <- renderDataTable(answers())
+  output$participants <- render_dtable(participants())
+  output$data <- render_dtable(answers())
   
   # Panel distances plot.
-  observeEvent(input$plot_dist_plot, {
-    output$panel_dist_plot <- renderPlot({
-      isolate(experts <- input$experts)
-      ans <- answers()
-      req(nrow(ans) > 0 && sum(col_types(ans) == "numeric") > 0)
-      ans <- arrange(ans, Valuador, Producto)
-      num_res <- ans %>%
-        select(Valuador, Producto, where(is.numeric)) %>%
-        pivot_wider(
-          names_from = Producto, values_from = where(is.numeric), names_glue = "{Producto} - {.value}"
-        ) %>% 
-        as.data.frame()
-      rownames(num_res) <- num_res$Valuador
-      num_res <- select(num_res, -Valuador) %>% 
-        as.matrix()
+  output$panel_dist_plot <- renderPlot({
+    experts <- input$experts
+    req(input$show_dist_plot)
+    ans <- answers()
+    req(nrow(ans) > 0 && sum(col_types(ans) == "numeric") > 0)
+    ans <- arrange(ans, Valuador, Producto)
+    num_res <- ans %>%
+      select(Valuador, Producto, where(is.numeric)) %>%
+      pivot_wider(
+        names_from = Producto, values_from = where(is.numeric), names_glue = "{Producto} - {.value}"
+      ) %>% 
+      as.data.frame()
+    rownames(num_res) <- num_res$Valuador
+    num_res <- select(num_res, -Valuador) %>% 
+      as.matrix()
+    num_res <- rbind(
+      Mediana = apply(num_res, 2, median),
+      num_res
+    )
+    if (length(experts) > 0) {
       num_res <- rbind(
-        Mediana = apply(num_res, 2, median),
+        "Mediana Expertos" = apply(num_res[experts,, drop = FALSE], 2, median),
         num_res
       )
-      if (length(experts) > 0) {
-        num_res <- rbind(
-          "Mediana Expertos" = apply(num_res[experts,, drop = FALSE], 2, median),
-          num_res
-        )
-      }
-      heatmap(num_res)
-    })
+    }
+    heatmap(num_res)
   })
   
   # Update participants at the experts selector.
@@ -114,7 +134,7 @@ server <- function(input, output, session) {
   )
 
   # Create answers summary table.
-  output$answers_summary_table <- renderDataTable({
+  output$answers_summary_table <- render_dtable({
     req(nrow(answers()) > 0)
     answers() %>%
       select(-Valuador) %>%
