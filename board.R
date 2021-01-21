@@ -1,6 +1,8 @@
 library("dplyr")
+library("DT")
 library("ggplot2")
 library("ggradar")
+library("ggwordcloud")
 library("glue")
 library("purrr")
 library("readr")
@@ -12,16 +14,36 @@ options(shiny.port = 4001)
 
 ui <- fluidPage(
   tabsetPanel(
-    tabPanel("Participantes", dataTableOutput("participants")),
+    tabPanel(
+      "Participantes",
+      h1("Participantes"),
+      br(),
+      DT::dataTableOutput("participants"),
+      hr(),
+      checkboxInput("show_dist_plot", "Mostrar resultados panel"),
+      conditionalPanel(
+        "input.show_dist_plot == true",
+        selectInput("experts", "Expertos", NULL, multiple = TRUE),
+        plotOutput("panel_dist_plot")
+      )
+    ),
     tabPanel(
       "Respuestas",
-      dataTableOutput("answers_summary_table"),
+      h1("Respuestas"),
+      br(),
+      DT::dataTableOutput("answers_summary_table"),
       plotOutput("answers_radar"),
-      selectInput("answer_selector", "", NULL),
-      plotOutput("answer_box")
+      # h1("Individuales"),
+      selectInput("answer_selector", "Individuales", NULL),
+      plotOutput("answer_box"),
+      plotOutput("answer_wordcloud")
     ),
-    tabPanel("Datos", dataTableOutput("data")),
-    tabPanel("Settings", selectInput("experts", "Expertos", NULL, multiple = TRUE))
+    tabPanel(
+      "Datos",
+      h1("Datos"),
+      br(),
+      DT::dataTableOutput("data")
+    )
   )
 )
 
@@ -44,13 +66,21 @@ get_answers <- function() {
       ~ tibble(
         Producto = sub("\\.csv$", "", .x),
         Valuador = user,
-        read_csv(glue("Answers/{user}/{.x}"))
+        read_csv(glue("Answers/{user}/{.x}"), col_types = cols())
       )
     )
   }) %>%
     bind_rows()
   req(nrow(answers) > 0)
   arrange(answers, Producto, Valuador)
+}
+
+col_types <- function(dataset) sapply(dataset, class)
+
+render_dtable <- function(table) {
+  DT::renderDataTable(DT::datatable(
+    table, options = list(paging = FALSE, searching = FALSE, info = FALSE), rownames = FALSE
+  ))
 }
 
 server <- function(input, output, session) {
@@ -65,9 +95,38 @@ server <- function(input, output, session) {
   })
 
   # Show participants table.
-  output$participants <- renderDataTable(participants())
-  output$data <- renderDataTable(answers())
-
+  output$participants <- render_dtable(participants())
+  output$data <- render_dtable(answers())
+  
+  # Panel distances plot.
+  output$panel_dist_plot <- renderPlot({
+    experts <- input$experts
+    req(input$show_dist_plot)
+    ans <- answers()
+    req(nrow(ans) > 0 && sum(col_types(ans) == "numeric") > 0)
+    ans <- arrange(ans, Valuador, Producto)
+    num_res <- ans %>%
+      select(Valuador, Producto, where(is.numeric)) %>%
+      pivot_wider(
+        names_from = Producto, values_from = where(is.numeric), names_glue = "{Producto} - {.value}"
+      ) %>% 
+      as.data.frame()
+    rownames(num_res) <- num_res$Valuador
+    num_res <- select(num_res, -Valuador) %>% 
+      as.matrix()
+    num_res <- rbind(
+      Mediana = apply(num_res, 2, median),
+      num_res
+    )
+    if (length(experts) > 0) {
+      num_res <- rbind(
+        "Mediana Expertos" = apply(num_res[experts,, drop = FALSE], 2, median),
+        num_res
+      )
+    }
+    heatmap(num_res)
+  })
+  
   # Update participants at the experts selector.
   observeEvent(
     participants(),
@@ -75,23 +134,24 @@ server <- function(input, output, session) {
   )
 
   # Create answers summary table.
-  output$answers_summary_table <- renderDataTable({
+  output$answers_summary_table <- render_dtable({
     req(nrow(answers()) > 0)
     answers() %>%
       select(-Valuador) %>%
       group_by(Producto) %>%
       mutate(Valuaciones = n()) %>%
-      summarise_all(median) %>%
+      summarise_if(is.numeric, median) %>%
       arrange(Producto)
   })
 
   # Create answers radar plot.
   output$answers_radar <- renderPlot({
-    req(nrow(answers()) > 0)
-    answers() %>%
+    ans <- answers()
+    req(nrow(ans) > 0 && sum(col_types(ans) == "numeric") > 0)
+    ans %>%
       select(-Valuador) %>%
       group_by(Producto) %>%
-      summarise_all(median) %>%
+      summarise_if(is.numeric, median) %>%
       ggradar(grid.min = 0, grid.max = 10, values.radar = c("", "", ""))
   })
 
@@ -109,11 +169,12 @@ server <- function(input, output, session) {
 
   # Selected answer boxplot.
   output$answer_box <- renderPlot({
-    req(nrow(answers()) > 0)
-    answers() %>%
+    ans <- answers()
+    req(nrow(ans) > 0 && sum(col_types(ans) == "numeric") > 0)
+    ans %>%
       filter(Producto == input$answer_selector) %>%
       select(-Producto) %>%
-      pivot_longer(-Valuador, names_to = "Atributo", values_to = "Valor") %>%
+      pivot_longer(where(is.numeric), names_to = "Atributo", values_to = "Valor") %>%
       mutate(Atributo = factor(Atributo, levels = colnames(answers()[-(1:2)]))) %>%
       ggplot(aes(x = Atributo, y = Valor, label = Valuador)) +
       geom_boxplot() +
@@ -123,6 +184,39 @@ server <- function(input, output, session) {
       ylab("") +
       coord_cartesian(ylim = c(0, 10)) +
       theme(legend.position = "none")
+  })
+  
+  # Selected answer wordclouds.
+  output$answer_wordcloud <- renderPlot({
+    ans <- answers()
+    req(nrow(ans) > 0 && sum(col_types(ans) == "character") > 2 && nchar(input$answer_selector) > 0)
+    ans %>%
+      filter(Producto == input$answer_selector) %>% 
+      select(negate(is.numeric)) %>% 
+      select(-Producto) %>%
+      pivot_longer(-Valuador, names_to = "Atributo", values_to = "Valor") %>%
+      group_by(Atributo) %>% 
+      group_map(function(val, group) {
+        if (all(is.na(val$Valor)))
+          return(tibble(Valor = "", Freq = 0, Atributo = as.character(group)))
+        resps <- val %>%
+          pull(Valor) %>% 
+          strsplit(", ") %>% 
+          map(~unique(trimws(.x))) %>% 
+          unlist() %>% 
+          table() %>% 
+          as_tibble()
+        colnames(resps) <- c("Valor", "Freq")
+        mutate(resps, Atributo = as.character(group))
+      }) %>% 
+      bind_rows() %>% 
+      ggplot(aes(label = Valor, size = Freq, color = Freq)) +
+        geom_text_wordcloud(area_corr_power = 1) +
+        facet_wrap(~Atributo) +
+        scale_size_area(max_size = 24) +
+        theme_minimal() +
+        scale_color_gradient(low = "red", high = "darkred") +
+        theme(strip.text = element_text(size = 20))
   })
 }
 
