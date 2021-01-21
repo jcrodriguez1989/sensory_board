@@ -13,8 +13,13 @@ options(shiny.port = 4001)
 
 ui <- fluidPage(
   tabsetPanel(
-    selected = "Respuestas",
-    tabPanel("Participantes", dataTableOutput("participants")),
+    tabPanel(
+      "Participantes",
+      dataTableOutput("participants"),
+      selectInput("experts", "Expertos", NULL, multiple = TRUE),
+      actionButton("plot_dist_plot", "Mostrar resultados panel"),
+      plotOutput("panel_dist_plot")
+    ),
     tabPanel(
       "Respuestas",
       dataTableOutput("answers_summary_table"),
@@ -23,8 +28,7 @@ ui <- fluidPage(
       plotOutput("answer_box"),
       plotOutput("answer_wordcloud")
     ),
-    tabPanel("Datos", dataTableOutput("data")),
-    tabPanel("Settings", selectInput("experts", "Expertos", NULL, multiple = TRUE))
+    tabPanel("Datos", dataTableOutput("data"))
   )
 )
 
@@ -72,7 +76,37 @@ server <- function(input, output, session) {
   # Show participants table.
   output$participants <- renderDataTable(participants())
   output$data <- renderDataTable(answers())
-
+  
+  # Panel distances plot.
+  observeEvent(input$plot_dist_plot, {
+    output$panel_dist_plot <- renderPlot({
+      isolate(experts <- input$experts)
+      ans <- answers()
+      req(nrow(ans) > 0 && sum(col_types(ans) == "numeric") > 0)
+      ans <- arrange(ans, Valuador, Producto)
+      num_res <- ans %>%
+        select(Valuador, Producto, where(is.numeric)) %>%
+        pivot_wider(
+          names_from = Producto, values_from = where(is.numeric), names_glue = "{Producto} - {.value}"
+        ) %>% 
+        as.data.frame()
+      rownames(num_res) <- num_res$Valuador
+      num_res <- select(num_res, -Valuador) %>% 
+        as.matrix()
+      num_res <- rbind(
+        Mediana = apply(num_res, 2, median),
+        num_res
+      )
+      if (length(experts) > 0) {
+        num_res <- rbind(
+          "Mediana Expertos" = apply(num_res[experts,, drop = FALSE], 2, median),
+          num_res
+        )
+      }
+      heatmap(num_res)
+    })
+  })
+  
   # Update participants at the experts selector.
   observeEvent(
     participants(),
