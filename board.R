@@ -4,6 +4,7 @@ library("ggplot2")
 library("ggradar")
 library("ggwordcloud")
 library("glue")
+library("grDevices")
 library("purrr")
 library("readr")
 library("shiny")
@@ -18,13 +19,15 @@ ui <- fluidPage(
       "Participantes",
       h1("Participantes"),
       br(),
-      DT::dataTableOutput("participants"),
+      DT::dataTableOutput("panel"),
       hr(),
       checkboxInput("show_dist_plot", "Mostrar resultados panel"),
       conditionalPanel(
         "input.show_dist_plot == true",
-        selectInput("experts", "Expertos", NULL, multiple = TRUE),
-        plotOutput("panel_dist_plot")
+        fluidRow(
+          column(2, selectInput("experts", "Expertos", NULL, multiple = TRUE)),
+          column(10, plotOutput("panel_dist_plot"))
+        )
       )
     ),
     tabPanel(
@@ -33,7 +36,6 @@ ui <- fluidPage(
       br(),
       DT::dataTableOutput("answers_summary_table"),
       plotOutput("answers_radar"),
-      # h1("Individuales"),
       selectInput("answer_selector", "Individuales", NULL),
       plotOutput("answer_box"),
       plotOutput("answer_wordcloud")
@@ -47,7 +49,7 @@ ui <- fluidPage(
   )
 )
 
-get_participants <- function() {
+get_panel <- function() {
   names <- dir("Answers/")
   req(length(names) > 0)
   map(
@@ -78,25 +80,25 @@ get_answers <- function() {
 col_types <- function(dataset) sapply(dataset, class)
 
 render_dtable <- function(table) {
-  DT::renderDataTable(DT::datatable(
+  DT::datatable(
     table, options = list(paging = FALSE, searching = FALSE, info = FALSE), rownames = FALSE
-  ))
+  )
 }
 
 server <- function(input, output, session) {
-  participants <- reactiveVal()
+  panel <- reactiveVal()
   answers <- reactiveVal()
 
   # Refrescar cada 5 segundos.
   timer <- reactiveTimer(1000 * 5)
   observeEvent(timer(), {
-    participants(get_participants())
+    panel(get_panel())
     answers(get_answers())
   })
 
-  # Show participants table.
-  output$participants <- render_dtable(participants())
-  output$data <- render_dtable(answers())
+  # Show panel table.
+  output$panel <- DT::renderDataTable(render_dtable(panel()))
+  output$data <- DT::renderDataTable(render_dtable(answers()))
   
   # Panel distances plot.
   output$panel_dist_plot <- renderPlot({
@@ -115,26 +117,31 @@ server <- function(input, output, session) {
     num_res <- select(num_res, -Valuador) %>% 
       as.matrix()
     num_res <- rbind(
-      Mediana = apply(num_res, 2, median),
+      General = apply(num_res, 2, median),
       num_res
     )
+    colors <- c("black", rep("white", nrow(num_res) - 1))
     if (length(experts) > 0) {
       num_res <- rbind(
-        "Mediana Expertos" = apply(num_res[experts,, drop = FALSE], 2, median),
+        Expertos = apply(num_res[experts,, drop = FALSE], 2, median),
         num_res
       )
+      colors <- c("gold", colors)
     }
-    heatmap(num_res)
+    heatmap(
+      num_res, RowSideColors = colors, col = colorRampPalette(c("white", "darkred"))(20),
+      scale = "none", breaks = seq(0, 10, 0.5) # TODO: get this from input formats.
+    )
   })
   
-  # Update participants at the experts selector.
+  # Update panel at the experts selector.
   observeEvent(
-    participants(),
-    updateSelectInput(session, "experts", choices = participants()$Nombre, selected = input$experts)
+    panel(),
+    updateSelectInput(session, "experts", choices = panel()$Nombre, selected = input$experts)
   )
 
   # Create answers summary table.
-  output$answers_summary_table <- render_dtable({
+  output$answers_summary_table <- DT::renderDataTable(render_dtable({
     req(nrow(answers()) > 0)
     answers() %>%
       select(-Valuador) %>%
@@ -142,7 +149,7 @@ server <- function(input, output, session) {
       mutate(Valuaciones = n()) %>%
       summarise_if(is.numeric, median) %>%
       arrange(Producto)
-  })
+  }))
 
   # Create answers radar plot.
   output$answers_radar <- renderPlot({

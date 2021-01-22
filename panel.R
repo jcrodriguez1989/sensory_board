@@ -3,6 +3,7 @@ library("glue")
 library("purrr")
 library("readr")
 library("shiny")
+library("shinyjs")
 library("shinythemes")
 
 options(shiny.host = "192.168.100.7") # As shown by `ifconfig`.
@@ -11,8 +12,15 @@ options(shiny.port = 4000)
 products <- read_csv("productos.csv") # TODO: give as param
 attributes <- read_csv("atributos.csv") # TODO: give as param
 
+
+
 ui <- fluidPage(
   theme = shinytheme("cyborg"),
+  useShinyjs(),
+  extendShinyjs(
+    text = "shinyjs.scrolltop = function() {window.scrollTo(0, 0)};",
+    functions = "scrolltop"
+  ),
   selectInput("product", "", choices = NULL),
   uiOutput("attributes"),
   actionButton("submit", "Enviar"),
@@ -131,6 +139,7 @@ server <- function(input, output, session) {
       map(~ifelse(!is.numeric(.x), paste(.x, collapse = ", "), .x)) %>% 
       bind_rows() %>%
       write_csv(glue("Answers/{input$username}/{input$product}.csv"))
+    js$scrolltop() # Scroll to top.
     showNotification("Valuación guardada", type = "message")
   })
 }
