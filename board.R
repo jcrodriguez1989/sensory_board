@@ -102,11 +102,12 @@ server <- function(input, output, session) {
   
   # Panel distances plot.
   output$panel_dist_plot <- renderPlot({
-    experts <- input$experts
     req(input$show_dist_plot)
     ans <- answers()
     req(nrow(ans) > 0 && sum(col_types(ans) == "numeric") > 0)
-    ans <- arrange(ans, Valuador, Producto)
+    ans <- filter(ans, Valuador %in% slice_max(panel(), Valuaciones)$Nombre) %>% 
+      arrange(Valuador, Producto)
+    experts <- intersect(input$experts, ans$Valuador)
     num_res <- ans %>%
       select(Valuador, Producto, where(is.numeric)) %>%
       pivot_wider(
@@ -209,7 +210,7 @@ server <- function(input, output, session) {
         resps <- val %>%
           pull(Valor) %>% 
           strsplit(", ") %>% 
-          map(~unique(trimws(.x))) %>% 
+          map(~unique(tolower(trimws(.x)))) %>% 
           unlist() %>% 
           table() %>% 
           as_tibble()

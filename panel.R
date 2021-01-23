@@ -123,9 +123,9 @@ server <- function(input, output, session) {
   })
 
   # If product selection changed, then restore attributes inputs.
-  observeEvent(input$product, {
+  observeEvent(c(input$product, input$username), {
     req(input$username, input$product)
-    reset_inputs(attributes, session)
+    # reset_inputs(attributes, session)
     if (file.exists(glue("Answers/{input$username}/{input$product}.csv"))) {
       values <- read_csv(glue("Answers/{input$username}/{input$product}.csv"))
       set_inputs(values, session)
