@@ -94,6 +94,10 @@ set_inputs <- function(values, session) {
 panel <- c()
 server <- function(input, output, session) {
   # Get username.
+  observeEvent(
+    getQueryString()$user,
+    updateTextInput(session, "username", value = getQueryString()$user)
+  )
   username_modal(session)
   observeEvent(input$submitName, {
     if (nchar(input$username) == 0) {
@@ -109,6 +113,7 @@ server <- function(input, output, session) {
     }
     panel <<- c(panel, input$username)
     dir.create(glue("Answers/{input$username}"), showWarnings = FALSE, recursive = TRUE)
+    updateQueryString(glue("?user={input$username}"), mode = "replace")
     removeModal()
   })
 
