@@ -18,7 +18,7 @@ run_board(
 For example: 192.168.100.7:4001 .}
 
 \item{panel_url}{An optional character including the panel's URL to show it as a QR code.
-For example: 192.168.100.7:4000 .}
+For example: http://192.168.100.7:4000 .}
 
 \item{numeric_range}{A numeric vector indicating the range for numeric inputs.}
 }

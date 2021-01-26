@@ -4,7 +4,7 @@
 #' @param dest_url An optional character including the URL to use as destination host and port.
 #'   For example: 192.168.100.7:4001 .
 #' @param panel_url An optional character including the panel's URL to show it as a QR code.
-#'   For example: 192.168.100.7:4000 .
+#'   For example: http://192.168.100.7:4000 .
 #' @param numeric_range A numeric vector indicating the range for numeric inputs.
 #'
 #' @importFrom dplyr `%>%` arrange as_tibble bind_rows filter group_by group_map if_else mutate n
