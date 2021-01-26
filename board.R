@@ -130,8 +130,8 @@ server <- function(input, output, session) {
       colors <- c("gold", colors)
     }
     heatmap(
-      num_res, RowSideColors = colors, col = colorRampPalette(c("white", "darkred"))(20),
-      scale = "none", breaks = seq(0, 10, 0.5) # TODO: get this from input formats.
+      num_res, RowSideColors = colors, col = colorRampPalette(c("white", "darkred"))(10),
+      scale = "none", breaks = seq(0, 5, 0.5) # TODO: get this from input formats.
     )
   })
   
@@ -160,7 +160,7 @@ server <- function(input, output, session) {
       select(-Valuador) %>%
       group_by(Producto) %>%
       summarise_if(is.numeric, median) %>%
-      ggradar(grid.min = 0, grid.max = 10, values.radar = c("", "", ""))
+      ggradar(grid.min = 0, grid.max = 5, values.radar = c("", "", ""))
   })
 
   # Update answers selector.
@@ -190,7 +190,8 @@ server <- function(input, output, session) {
       theme_bw() +
       xlab("") +
       ylab("") +
-      coord_cartesian(ylim = c(0, 10)) +
+      coord_cartesian(ylim = c(0, 5)) +
+      scale_y_continuous(breaks = seq(0, 5)) +
       theme(legend.position = "none")
   })
   

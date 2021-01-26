@@ -1,0 +1,28 @@
+Package: sensoryboard
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.1.0
+Authors@R: c(
+  person(given = "Juan Cruz", family = "Rodriguez", 
+    role = c("aut", "cre"), email = "jcrodriguez@unc.edu.ar")
+  )
+Maintainer: Juan Cruz Rodriguez <jcrodriguez@unc.edu.ar>
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Imports:
+  DT,
+  dplyr,
+  ggplot2,
+  ggradar,
+  ggwordcloud,
+  glue,
+  purrr,
+  readr,
+  shiny,
+  shinyjs,
+  shinythemes,
+  tidyr
+LazyData: true
+RoxygenNote: 7.1.1
