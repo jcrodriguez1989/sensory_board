@@ -7,5 +7,7 @@ utils::globalVariables(c(
   "Valor",
   "Valuaciones",
   "Valuador",
+  "Var1",
+  "Var2",
   "where"
 ))

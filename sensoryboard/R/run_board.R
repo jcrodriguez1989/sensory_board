@@ -3,19 +3,22 @@
 #' @param answers_dir A character path to the folder from which to load user responses.
 #' @param dest_url An optional character including the URL to use as destination host and port.
 #'   For example: 192.168.100.7:4001 .
+#' @param panel_url An optional character including the panel's URL to show it as a QR code.
+#'   For example: 192.168.100.7:4000 .
 #' @param numeric_range A numeric vector indicating the range for numeric inputs.
 #'
 #' @importFrom dplyr `%>%` arrange as_tibble bind_rows filter group_by group_map if_else mutate n
 #' @importFrom dplyr pull select slice_max summarise_if tibble
 #' @importFrom DT datatable dataTableOutput renderDataTable
-#' @importFrom ggplot2 aes coord_cartesian element_text facet_wrap geom_boxplot geom_text ggplot
-#' @importFrom ggplot2 scale_color_gradient scale_size_area scale_y_continuous theme theme_bw
-#' @importFrom ggplot2 theme_minimal xlab ylab
+#' @importFrom ggplot2 aes coord_cartesian element_text facet_wrap geom_boxplot geom_text geom_tile
+#' @importFrom ggplot2 ggplot scale_color_gradient scale_size_area scale_y_continuous theme theme_bw
+#' @importFrom ggplot2 theme_minimal theme_void xlab ylab
 #' @importFrom ggradar ggradar
 #' @importFrom ggwordcloud geom_text_wordcloud
 #' @importFrom glue glue
 #' @importFrom grDevices colorRampPalette
 #' @importFrom purrr map negate
+#' @importFrom qrcode qrcode_gen
 #' @importFrom readr cols read_csv
 #' @importFrom shiny br checkboxInput column conditionalPanel fluidPage fluidRow h1 hr observeEvent
 #' @importFrom shiny plotOutput reactiveTimer reactiveVal renderPlot req selectInput shinyApp
@@ -25,7 +28,8 @@
 #'
 #' @export
 #'
-run_board <- function(answers_dir = "Answers", dest_url = NULL, numeric_range = c(0, 10)) {
+run_board <- function(
+                      answers_dir = "Answers", dest_url = NULL, panel_url = NULL, numeric_range = c(0, 10)) {
   # Set default host/port, if not provided as `dest_url`.
   host <- getOption("shiny.host", "127.0.0.1")
   port <- getOption("shiny.port")
@@ -44,7 +48,10 @@ run_board <- function(answers_dir = "Answers", dest_url = NULL, numeric_range = 
         "Participantes",
         h1("Participantes"),
         br(),
-        DT::dataTableOutput("panel"),
+        fluidRow(
+          column(6, DT::dataTableOutput("panel")),
+          column(6, plotOutput("qrcode"))
+        ),
         hr(),
         checkboxInput("show_dist_plot", "Mostrar resultados panel"),
         conditionalPanel(
@@ -117,6 +124,21 @@ run_board <- function(answers_dir = "Answers", dest_url = NULL, numeric_range = 
     )
   }
 
+  # Generates the QR code plot from the `text`.
+  qr_gen <- function(text) {
+    if (!require("qrcode") | is.null(text)) {
+      return(invisible(text))
+    }
+    qr_matrix <- qrcode_gen(text, dataOutput = TRUE, plotQRcode = FALSE)
+    qr_matrix <- as.data.frame.table(qr_matrix)
+    qr_matrix[1:2] <- lapply(qr_matrix[1:2], as.numeric)
+    qr_matrix <- qr_matrix[qr_matrix$Freq == 1, ]
+    ggplot(qr_matrix, aes(Var1, Var2)) +
+      geom_tile() +
+      theme_void() +
+      theme(aspect.ratio = 1)
+  }
+
   server <- function(input, output, session) {
     panel <- reactiveVal()
     answers <- reactiveVal()
@@ -127,6 +149,9 @@ run_board <- function(answers_dir = "Answers", dest_url = NULL, numeric_range = 
       panel(get_panel())
       answers(get_answers())
     })
+
+    # Show QR code.
+    output$qrcode <- renderPlot(qr_gen(panel_url))
 
     # Show panel table.
     output$panel <- DT::renderDataTable(render_dtable(panel()))

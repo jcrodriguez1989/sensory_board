@@ -19,6 +19,7 @@ Imports:
   ggwordcloud,
   glue,
   purrr,
+  qrcode,
   readr,
   shiny,
   shinyjs,
