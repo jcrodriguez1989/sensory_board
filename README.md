@@ -49,9 +49,11 @@ performed in a `csv` file, as exemplified in
     #> 3  Eredita
     #> 4    Nieto
 
-This `csv` file should contain one column, the name of this column will
-be the name of the product to be evaluated, for example `"Copa"`. The
-values of this first columns, will be the product to be evaluated.
+This `csv` file should contain at least one column, the name of the
+first column will be the name of the product to be evaluated, for
+example `"Copa"`. The values of this first column, will be the products
+to be evaluated. Additional columns will not be used by
+`{sensoryboard}`, but might be useful for the panel leader.
 
 ### Running the App
 
