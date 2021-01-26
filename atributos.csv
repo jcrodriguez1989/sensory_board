@@ -1,0 +1,11 @@
+Nombre,Valores
+Intensidad de color,Numeric
+Aromas,Text
+Sabores,Text
+Frutal,Numeric
+Floral,Numeric
+Herbáceo,Numeric
+Acidez,Numeric
+Amargor,Numeric
+Alcohol,Numeric
+Valoración,Numeric
