@@ -2,7 +2,8 @@
 #'
 #' @param products_file A character path to the csv file containing the products to evaluate.
 #' @param attributes_file A character path to the csv file containing the attributes to evaluate.
-#' @param answers_dir A character path to the folder in which to save user responses.
+#' @param answers_dir A character path to the folder in which to save user responses (if it does not
+#'   exist, it will create it).
 #' @param dest_url An optional character including the URL to use as destination host and port.
 #'   For example: 192.168.100.7:4000 .
 #' @param numeric_range A numeric vector indicating the range for numeric inputs.

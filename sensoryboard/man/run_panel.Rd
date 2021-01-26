@@ -17,7 +17,8 @@ run_panel(
 
 \item{attributes_file}{A character path to the csv file containing the attributes to evaluate.}
 
-\item{answers_dir}{A character path to the folder in which to save user responses.}
+\item{answers_dir}{A character path to the folder in which to save user responses (if it does not
+exist, it will create it).}
 
 \item{dest_url}{An optional character including the URL to use as destination host and port.
 For example: 192.168.100.7:4000 .}
