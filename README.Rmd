@@ -1,0 +1,81 @@
+---
+output: github_document
+---
+
+```{r, include = FALSE}
+library("dplyr")
+library("readr")
+
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# Sensory Board
+
+## Installation
+
+You can install the development version of `{sensoryboard}` from [GitHub](https://github.com/) with:
+
+``` r
+if (!require("remotes")) {
+  install.packages("remotes")
+}
+remotes::install_github(
+  "jcrodriguez1989/sensory_board", subdir = "sensoryboard", dependencies = TRUE
+)
+```
+
+## Example
+
+### Setting the Attributes to Evaluate
+
+To set which attributes -and their type- to evaluate by the panelists, this should be performed in a `csv` file, as exemplified in [atributos.csv](atributos.csv).
+
+```{r, echo=FALSE}
+read_csv("atributos.csv", col_types = cols()) %>% 
+  as.data.frame() %>% 
+  head()
+```
+
+This `csv` file should contain two columns:
+
+* Nombre: The names of the attribute to be evaluated.
+* Valores: The types of the attribute to be evaluated, must be one of `{"Numeric", "Text"}`
+
+### Setting the Products to Evaluate
+
+To set which products to evaluate by the panelists, this should be performed in a `csv` file, as exemplified in [productos.csv](productos.csv).
+
+```{r, echo=FALSE}
+read_csv("productos.csv", col_types = cols()) %>% 
+  as.data.frame() %>% 
+  head()
+```
+
+This `csv` file should contain one column, the name of this column will be the name of the product to be evaluated, for example `"Copa"`. The values of this first columns, will be the product to be evaluated.
+
+### Running the App
+
+#### Running the Panel
+
+Let's assume we are using the two files presented above, to run the panel app, from an R console type:
+
+```{r, eval=FALSE}
+sensoryboard::run_panel(
+  products_file = "productos.csv",
+  attributes_file = "atributos.csv",
+  answers_dir = "Answers/"
+)
+```
+
+#### Running the Board
+
+Let's assume we are using the two files presented above, to run the board app, from an R console type:
+
+```{r, eval=FALSE}
+sensoryboard::run_board(answers_dir = "Answers/")
+```
